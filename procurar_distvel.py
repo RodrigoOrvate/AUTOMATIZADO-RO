@@ -4,131 +4,119 @@ from openpyxl.styles import Alignment, Font, Border, Side
 
 def organizar(caminho_arquivo2, global_workbook):
     # Carregar dados do Excel
-    df = pd.read_excel(caminho_arquivo2, header=6, sheet_name = "Bin Measure")
+    try:
+        df = pd.read_excel(caminho_arquivo2, header=6, sheet_name="Bin Measure")
+    except Exception as e:
+        print(f"Erro ao ler a aba 'Bin Measure': {e}")
+        return []
+
+    # --- TRATAMENTO DOS DIAS ---
     # Converta os valores na coluna 'DAY' para strings
     df['DAY'] = df['DAY'].astype(str)
-    # Remova o ponto decimal e zeros à direita ('.0') dos valores na coluna 'DAY'
-    df['DAY'] = df['DAY'].str.replace('.0', '')
-    # Converta os valores na coluna 'DAY' para inteiros, ignorando os valores NaN
+    # Remova o ponto decimal e zeros à direita ('.0')
+    df['DAY'] = df['DAY'].str.replace('.0', '', regex=False)
+    # Converta para inteiros
     df['DAY'] = pd.to_numeric(df['DAY'], errors='coerce')
-    # Coluna que contém as informações sobre o evento
-    coluna_evento = 'Measure'
-    # Evento para Distance Traveled
-    evento_distance_traveled = 'Mouse 1 Center Distance Traveled (apart 1.000000 second)'
-    # Evento para Velocity Average
-    evento_velocity_average = 'Mouse 1 Center Velocity Average (apart 1.000000 second)'
-    # Colunas desejadas no DataFrame filtrado
-    colunas_desejadas = ['DAY', 'ANIMAL', 'Bin1']
-
-    # Cria uma nova planilha no arquivo global para os dados 'TR'
-    ws_tr = global_workbook.create_sheet(title='TR')
-    # Cria uma nova planilha no arquivo global para os dados 'TT'
-    ws_tt = global_workbook.create_sheet(title='TT')
-
-    # Inicializa um DataFrame para armazenar os dados do TR
-    df_tr = pd.DataFrame(columns=colunas_desejadas)
-    # Inicializa um DataFrame para armazenar os dados do TT
-    df_tt = pd.DataFrame(columns=colunas_desejadas)
-
-    #(df['Video Name'].str.contains('TR')) foi retirado, pois o teste pode ter nome de TR
-    # Filtra os dados TR com base no evento de distância
-    dados_distance_tr = df[(df[coluna_evento] == evento_distance_traveled) & (df['DAY'] == 1)]
-    # Filtra os dados TR com base no evento de velocidade
-    dados_velocity_tr = df[(df[coluna_evento] == evento_velocity_average) & (df['DAY'] == 1)]
-
-    # Merge dos dados de distância e velocidade do TR com base em 'DAY' e 'ANIMAL'
-    df_tr = pd.merge(dados_distance_tr, dados_velocity_tr, on=['DAY', 'ANIMAL'], suffixes=('_dist', '_vel'))
-
-    # Reorganiza as colunas do DataFrame do TR
-    df_tr = df_tr.reindex(columns=['DAY', 'ANIMAL', 'Bin1_dist', 'Bin1_vel'])
-
-    # Adiciona uma coluna em branco ao lado de 'Bin1_dist' no DataFrame do TR
-    df_tr.insert(df_tr.columns.get_loc('Bin1_dist') + 1, 'Bin1_dist_blank', '')
-
-    # Preenche a coluna em branco do TR com os dados de 'Bin1_dist' divididos por 1000
-    df_tr['Bin1_dist_blank'] = df_tr['Bin1_dist'] / 1000
-
-    # Adiciona o DataFrame do TR ao arquivo do Excel
-    for row in dataframe_to_rows(df_tr, index=False, header=True):
-        ws_tr.append(row)
-
-    #(df['Video Name'].str.contains('TT')) foi retirado
-    # Filtra os dados TT com base no evento de distância
-    dados_distance_tt = df[(df[coluna_evento] == evento_distance_traveled) & (df['DAY'] == 2)]
-    # Filtra os dados TT com base no evento de velocidade
-    dados_velocity_tt = df[(df[coluna_evento] == evento_velocity_average) & (df['DAY'] == 2)]
-
-    # Merge dos dados de distância e velocidade do TT com base em 'DAY' e 'ANIMAL'
-    df_tt = pd.merge(dados_distance_tt, dados_velocity_tt, on=['DAY', 'ANIMAL'], suffixes=('_dist', '_vel'))
-
-    # Reorganiza as colunas do DataFrame do TT
-    df_tt = df_tt.reindex(columns=['DAY', 'ANIMAL', 'Bin1_dist', 'Bin1_vel'])
-
-    # Adiciona uma coluna em branco ao lado de 'Bin1_dist' no DataFrame do TT
-    df_tt.insert(df_tt.columns.get_loc('Bin1_dist') + 1, 'Bin1_dist_blank', '')
-
-    # Preenche a coluna em branco do TT com os dados de 'Bin1_dist' divididos por 1000
-    df_tt['Bin1_dist_blank'] = df_tt['Bin1_dist'] / 1000
-
-    # Adiciona o DataFrame do TT ao arquivo do Excel
-    for row in dataframe_to_rows(df_tt, index=False, header=True):
-        ws_tt.append(row)
+    # Remove linhas inválidas
+    df = df.dropna(subset=['DAY'])
     
-    # Definir tamanhos
-    colunas_menores = ['C', 'E']
-    coluna_maior = ['D']
+    # --- CÁLCULO DA SOMA (BIN1 + BIN2) ---
+    # Garante que Bin1 e Bin2 sejam numéricos, transformando erros em NaN e depois em 0 para a soma
+    # Se preferir que "Vazio" + 10 seja NaN, remova o .fillna(0)
+    df['Bin1'] = pd.to_numeric(df['Bin1'], errors='coerce').fillna(0)
+    
+    # Verifica se a coluna Bin2 existe, caso o arquivo mude no futuro
+    if 'Bin2' in df.columns:
+        df['Bin2'] = pd.to_numeric(df['Bin2'], errors='coerce').fillna(0)
+        # Cria a coluna da soma
+        df['Bin_Soma'] = df['Bin1'] + df['Bin2']
+    else:
+        # Se não tiver Bin2, a soma é igual ao Bin1
+        df['Bin_Soma'] = df['Bin1']
 
-    # Define o tamanho desejado para as colunas separadas
-    for coluna in colunas_menores:
-        ws_tr.column_dimensions[coluna].width = 14
-        ws_tt.column_dimensions[coluna].width = 14
+    # Ordena os dias para criar as abas em ordem
+    dias_unicos = sorted(df['DAY'].unique().astype(int))
 
-    for coluna in coluna_maior:
-        ws_tr.column_dimensions[coluna].width = 18
-        ws_tt.column_dimensions[coluna].width = 18
+    # Definições de Eventos
+    coluna_evento = 'Measure'
+    evento_distance_traveled = 'Mouse 1 Center Distance Traveled (apart 1.000000 second)'
+    evento_velocity_average = 'Mouse 1 Center Velocity Average (apart 1.000000 second)'
 
-    # Renomeia as colunas
+    # Dicionário para renomear colunas (Note que agora usamos 'Bin_Soma')
     novo_nome_colunas = {
         'DAY': 'Dia',
         'ANIMAL': 'Animal',
-        'Bin1_dist': 'Distância',
-        'Bin1_dist_blank': 'Distância (metros)',
-        'Bin1_vel': 'Velocidade',
+        'Bin_Soma_dist': 'Distância',       # Alterado de Bin1 para Bin_Soma
+        'Bin_Soma_dist_blank': 'Distância (metros)',
+        'Bin_Soma_vel': 'Velocidade',      # Alterado de Bin1 para Bin_Soma
     }
 
-    # Itera sobre as células de cabeçalho para renomear as colunas
-    for coluna_antiga, novo_nome in novo_nome_colunas.items():
-        # Obtém o número da coluna antiga
-        for cell in ws_tr[1]:
-            if cell.value == coluna_antiga:
-                numero_coluna_antiga = cell.column
-                break
-        # Define o novo nome da coluna
-        ws_tr.cell(row=1, column=numero_coluna_antiga, value=novo_nome)
+    # Itera sobre cada dia encontrado no arquivo
+    for dia in dias_unicos:
+        nome_aba = str(dia)
+        
+        # Cria ou seleciona a aba
+        if nome_aba in global_workbook.sheetnames:
+            ws = global_workbook[nome_aba]
+        else:
+            ws = global_workbook.create_sheet(title=nome_aba)
 
-    # Itera sobre as células de cabeçalho para renomear as colunas
-    for coluna_antiga, novo_nome in novo_nome_colunas.items():
-        # Obtém o número da coluna antiga
-        for cell in ws_tt[1]:
-            if cell.value == coluna_antiga:
-                numero_coluna_antiga = cell.column
-                break
-        # Define o novo nome da coluna
-        ws_tt.cell(row=1, column=numero_coluna_antiga, value=novo_nome)
+        # Filtra os dados usando a coluna já calculada (Bin_Soma)
+        dados_distance = df[(df[coluna_evento] == evento_distance_traveled) & (df['DAY'] == dia)]
+        dados_velocity = df[(df[coluna_evento] == evento_velocity_average) & (df['DAY'] == dia)]
 
-    # Aplica formatação nas planilhas 'TR' e 'TT'
-    for ws in [ws_tr, ws_tt]:
-        # Centraliza o conteúdo das células
+        if dados_distance.empty and dados_velocity.empty:
+            continue
+
+        # Merge dos dados usando 'DAY' e 'ANIMAL' como chave
+        # Isso vai criar colunas: Bin_Soma_dist e Bin_Soma_vel
+        df_dia = pd.merge(dados_distance, dados_velocity, on=['DAY', 'ANIMAL'], suffixes=('_dist', '_vel'))
+
+        # Seleciona apenas as colunas de interesse (Soma)
+        colunas_para_manter = ['DAY', 'ANIMAL', 'Bin_Soma_dist', 'Bin_Soma_vel']
+        
+        # Garante que as colunas existem antes de reindexar
+        colunas_existentes = [c for c in colunas_para_manter if c in df_dia.columns]
+        df_dia = df_dia.reindex(columns=colunas_existentes)
+
+        # Adiciona a coluna de Distância em Metros
+        if 'Bin_Soma_dist' in df_dia.columns:
+            # Insere a coluna em branco logo após a distância
+            posicao_dist = df_dia.columns.get_loc('Bin_Soma_dist') + 1
+            df_dia.insert(posicao_dist, 'Bin_Soma_dist_blank', '')
+            
+            # Preenche dividindo por 1000
+            df_dia['Bin_Soma_dist_blank'] = df_dia['Bin_Soma_dist'] / 1000
+
+        # Adiciona os dados à aba
+        for row in dataframe_to_rows(df_dia, index=False, header=True):
+            ws.append(row)
+
+        # --- FORMATAÇÃO VISUAL ---
+        
+        # Ajuste de larguras
+        colunas_menores = ['C', 'E'] # C=Distância, E=Velocidade
+        coluna_maior = ['D']         # D=Metros
+
+        for letra in colunas_menores:
+            ws.column_dimensions[letra].width = 14
+        for letra in coluna_maior:
+            ws.column_dimensions[letra].width = 18
+
+        # Renomear Cabeçalhos (Aplica o dicionário novo_nome_colunas)
+        for cell in ws[1]:
+            if cell.value in novo_nome_colunas:
+                cell.value = novo_nome_colunas[cell.value]
+
+        # Estilização
+        border_style = Border(left=Side(style='thin'), right=Side(style='thin'), 
+                              top=Side(style='thin'), bottom=Side(style='thin'))
+        
         for row in ws.iter_rows(min_row=1, min_col=1, max_row=ws.max_row, max_col=ws.max_column):
             for cell in row:
                 cell.alignment = Alignment(horizontal='center', vertical='center')
-        # Aplica formatação nos títulos das colunas
-        for row in ws.iter_rows(min_row=1, min_col=1, max_row=1, max_col=ws.max_column):
-            for cell in row:
-                cell.font = Font(bold=True)
-                cell.border = Border(left=Side(style='thin'),
-                                     right=Side(style='thin'),
-                                     top=Side(style='thin'),
-                                     bottom=Side(style='thin'))
+                if cell.row == 1:
+                    cell.font = Font(bold=True)
+                    cell.border = border_style
 
-    return df_tr, df_tt  # Retorna os DataFrames do TR e TT
+    return dias_unicos
