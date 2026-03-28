@@ -16,6 +16,8 @@ a = Analysis(
     ],
     hiddenimports=[
         'pandas',
+        'pandas._libs.json',
+        'pandas._libs.tslibs.np_datetime',
         'openpyxl',
         'openpyxl.styles',
         'openpyxl.utils',
