@@ -9,11 +9,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/RodrigoOrvate/AUTOMATIZADO-RO/releases/latest">
-    <img src="https://img.shields.io/github/v/release/RodrigoOrvate/AUTOMATIZADO-RO?style=for-the-badge&color=ab3d4c&label=Vers%C3%A3o" alt="Versão">
+  <a href="https://github.com/RodrigoOrvate/NeuroTrace/releases/latest">
+    <img src="https://img.shields.io/github/v/release/RodrigoOrvate/NeuroTrace?style=for-the-badge&color=ab3d4c&label=Vers%C3%A3o" alt="Versão">
   </a>
-  <a href="https://github.com/RodrigoOrvate/AUTOMATIZADO-RO/releases/latest">
-    <img src="https://img.shields.io/github/downloads/RodrigoOrvate/AUTOMATIZADO-RO/total?style=for-the-badge&color=2d2d4a&label=Downloads" alt="Downloads">
+  <a href="https://github.com/RodrigoOrvate/NeuroTrace/releases/latest">
+    <img src="https://img.shields.io/github/downloads/RodrigoOrvate/NeuroTrace/total?style=for-the-badge&color=2d2d4a&label=Downloads" alt="Downloads">
   </a>
   <img src="https://img.shields.io/badge/Plataforma-Windows%20|%20macOS-blue?style=for-the-badge&color=1a1a2e" alt="Plataforma">
 </p>
@@ -39,7 +39,7 @@ O **NeuroTrace** é uma ferramenta desktop desenvolvida para automatizar a organ
 
 A forma mais simples de instalar o programa. O instalador configura tudo automaticamente.
 
-1. Acesse a **[página de Releases](https://github.com/RodrigoOrvate/AUTOMATIZADO-RO/releases/latest)**
+1. Acesse a **[página de Releases](https://github.com/RodrigoOrvate/NeuroTrace/releases/latest)**
 2. Baixe o arquivo **`NeuroTrace_Setup_v2.0.0.exe`**
 3. Execute o instalador e siga as instruções
 4. O programa será instalado em `C:\Program Files\NeuroTrace` e um atalho será criado na **Área de Trabalho**
@@ -50,7 +50,7 @@ A forma mais simples de instalar o programa. O instalador configura tudo automat
 
 Se preferir não instalar, pode usar o executável diretamente.
 
-1. Acesse a **[página de Releases](https://github.com/RodrigoOrvate/AUTOMATIZADO-RO/releases/latest)**
+1. Acesse a **[página de Releases](https://github.com/RodrigoOrvate/NeuroTrace/releases/latest)**
 2. Baixe o arquivo **`NeuroTrace.exe`**
 3. Salve em qualquer pasta e execute diretamente
 
@@ -60,7 +60,7 @@ Se preferir não instalar, pode usar o executável diretamente.
 
 #### Opção 1 — Instalador .dmg (Recomendado)
 
-1. Acesse a **[página de Releases](https://github.com/RodrigoOrvate/AUTOMATIZADO-RO/releases/latest)**
+1. Acesse a **[página de Releases](https://github.com/RodrigoOrvate/NeuroTrace/releases/latest)**
 2. Baixe o arquivo **`NeuroTrace_macOS_v2.0.0.dmg`**
 3. Abra o `.dmg` e arraste o **NeuroTrace** para a pasta **Applications**
 4. Na primeira vez, clique com o botão direito → **"Abrir"** para autorizar a execução
@@ -155,7 +155,7 @@ O `.app` será gerado em `dist/NeuroTrace.app` e o `.dmg` em `installer_output/`
 ## 📁 Estrutura do Projeto
 
 ```
-AUTOMATIZADO-RO/
+NeuroTrace/
 ├── main.py                 # Interface principal (PyQt5)
 ├── procurar_objeto.py      # Lógica de filtragem de objetos
 ├── procurar_distvel.py     # Lógica de organização dist/vel

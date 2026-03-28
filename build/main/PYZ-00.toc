@@ -1,5 +1,5 @@
 ('C:\\Users\\rodri\\OneDrive\\Área de '
- 'Trabalho\\AUTOMATIZADO-RO\\build\\main\\PYZ-00.pyz',
+ 'Trabalho\\NeuroTrace\\build\\main\\PYZ-00.pyz',
  [('PIL',
    'C:\\Users\\rodri\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python311\\site-packages\\PIL\\__init__.py',
    'PYMODULE'),
@@ -2917,11 +2917,11 @@
    'PYMODULE'),
   ('procurar_distvel',
    'C:\\Users\\rodri\\OneDrive\\Área de '
-   'Trabalho\\AUTOMATIZADO-RO\\procurar_distvel.py',
+   'Trabalho\\NeuroTrace\\procurar_distvel.py',
    'PYMODULE'),
   ('procurar_objeto',
    'C:\\Users\\rodri\\OneDrive\\Área de '
-   'Trabalho\\AUTOMATIZADO-RO\\procurar_objeto.py',
+   'Trabalho\\NeuroTrace\\procurar_objeto.py',
    'PYMODULE'),
   ('py_compile',
    'C:\\Program '
@@ -3233,7 +3233,7 @@
    'C:\\Users\\rodri\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python311\\site-packages\\typing_extensions.py',
    'PYMODULE'),
   ('updater',
-   'C:\\Users\\rodri\\OneDrive\\Área de Trabalho\\AUTOMATIZADO-RO\\updater.py',
+   'C:\\Users\\rodri\\OneDrive\\Área de Trabalho\\NeuroTrace\\updater.py',
    'PYMODULE'),
   ('urllib',
    'C:\\Program '

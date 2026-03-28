@@ -27,7 +27,7 @@ from PyQt5.QtGui import QColor
 
 # ─── Configuração ─────────────────────────────────────────────
 GITHUB_OWNER = "RodrigoOrvate"
-GITHUB_REPO = "AUTOMATIZADO-RO"
+GITHUB_REPO = "NeuroTrace"
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/releases/latest"
 CURRENT_VERSION = "2.0.0"
 
