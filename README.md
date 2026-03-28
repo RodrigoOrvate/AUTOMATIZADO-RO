@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="memorylab.ico" alt="AUTOMATIZADO Logo" width="120">
+  <img src="memorylab.ico" alt="NeuroTrace Logo" width="120">
 </p>
 
-<h1 align="center">AUTOMATIZADO</h1>
+<h1 align="center">NeuroTrace</h1>
 
 <p align="center">
   <strong>Organizador de dados Topscan para pesquisa comportamental</strong>
@@ -22,7 +22,7 @@
 
 ## 📖 Sobre
 
-O **AUTOMATIZADO** é uma ferramenta desktop desenvolvida para automatizar a organização e filtragem de dados gerados pelo software **Topscan**, amplamente utilizado em pesquisas de comportamento animal em laboratórios de neurociência.
+O **NeuroTrace** é uma ferramenta desktop desenvolvida para automatizar a organização e filtragem de dados gerados pelo software **Topscan**, amplamente utilizado em pesquisas de comportamento animal em laboratórios de neurociência.
 
 ### O que o programa faz?
 
@@ -40,9 +40,9 @@ O **AUTOMATIZADO** é uma ferramenta desktop desenvolvida para automatizar a org
 A forma mais simples de instalar o programa. O instalador configura tudo automaticamente.
 
 1. Acesse a **[página de Releases](https://github.com/RodrigoOrvate/AUTOMATIZADO-RO/releases/latest)**
-2. Baixe o arquivo **`AUTOMATIZADO_Setup_v2.0.0.exe`**
+2. Baixe o arquivo **`NeuroTrace_Setup_v2.0.0.exe`**
 3. Execute o instalador e siga as instruções
-4. O programa será instalado em `C:\Program Files\AUTOMATIZADO` e um atalho será criado na **Área de Trabalho**
+4. O programa será instalado em `C:\Program Files\NeuroTrace` e um atalho será criado na **Área de Trabalho**
 
 > **Nota:** O Windows pode exibir um alerta do SmartScreen na primeira execução. Clique em **"Mais informações"** → **"Executar assim mesmo"**.
 
@@ -51,7 +51,7 @@ A forma mais simples de instalar o programa. O instalador configura tudo automat
 Se preferir não instalar, pode usar o executável diretamente.
 
 1. Acesse a **[página de Releases](https://github.com/RodrigoOrvate/AUTOMATIZADO-RO/releases/latest)**
-2. Baixe o arquivo **`AUTOMATIZADO.exe`**
+2. Baixe o arquivo **`NeuroTrace.exe`**
 3. Salve em qualquer pasta e execute diretamente
 
 ---
@@ -61,8 +61,8 @@ Se preferir não instalar, pode usar o executável diretamente.
 #### Opção 1 — Instalador .dmg (Recomendado)
 
 1. Acesse a **[página de Releases](https://github.com/RodrigoOrvate/AUTOMATIZADO-RO/releases/latest)**
-2. Baixe o arquivo **`AUTOMATIZADO_macOS_v2.0.0.dmg`**
-3. Abra o `.dmg` e arraste o **AUTOMATIZADO** para a pasta **Applications**
+2. Baixe o arquivo **`NeuroTrace_macOS_v2.0.0.dmg`**
+3. Abra o `.dmg` e arraste o **NeuroTrace** para a pasta **Applications**
 4. Na primeira vez, clique com o botão direito → **"Abrir"** para autorizar a execução
 
 > **Nota:** Como o app não é assinado com certificado Apple Developer, o macOS pode bloquear a execução. Se aparecer a mensagem _"não pode ser aberto porque o desenvolvedor não pode ser verificado"_, vá em **Ajustes do Sistema → Privacidade e Segurança** e clique em **"Abrir Mesmo Assim"**.
@@ -78,17 +78,6 @@ pip3 install PyQt5 pandas openpyxl
 # Executar
 python3 main.py
 ```
-
----
-
-### 📦 Download do Repositório Completo
-
-Para quem deseja acessar o código-fonte ou contribuir:
-
-1. Clique no botão verde **"Code"** → **"Download ZIP"**
-2. Extraia a pasta
-3. No Windows, o executável está em `dist/AUTOMATIZADO.exe`
-4. No macOS, execute `python3 main.py` após instalar as dependências
 
 ---
 
@@ -119,10 +108,6 @@ O programa verifica automaticamente se há novas versões ao iniciar. Quando uma
 2. Clique em **"Atualizar"** para baixar e instalar automaticamente
 3. O programa reinicia com a versão mais recente
 
-O sistema de atualização é inteligente e detecta a plataforma automaticamente:
-- **Windows:** Baixa o instalador `.exe` ou atualiza o executável standalone
-- **macOS:** Baixa o `.dmg`, copia o `.app` para `/Applications` e reinicia
-
 Você também pode verificar manualmente clicando no botão **"Atualizar 🔄"** na interface.
 
 ---
@@ -148,27 +133,22 @@ python main.py
 
 ```bash
 # Apenas o .exe
-python -m PyInstaller main.spec --clean --noconfirm
+packaging\build_exe.bat
 
 # .exe + Instalador (requer Inno Setup 6)
-build_installer.bat
+packaging\build_installer.bat
 ```
 
-O `.exe` será gerado em `dist/AUTOMATIZADO.exe` e o instalador em `installer_output/`.
+O `.exe` será gerado em `dist/NeuroTrace.exe` e o instalador em `installer_output/`.
 
 ### Build para macOS
 
 ```bash
-# Tornar o script executável
-chmod +x build_macos.sh
-
-# Gerar .app + .dmg
-./build_macos.sh
+chmod +x packaging/build_macos.sh
+./packaging/build_macos.sh
 ```
 
-O `.app` será gerado em `dist/AUTOMATIZADO.app` e o `.dmg` em `installer_output/`.
-
-> **Nota:** O build para macOS requer que seja executado em um Mac. O `hdiutil` (usado para criar o `.dmg`) é nativo do macOS.
+O `.app` será gerado em `dist/NeuroTrace.app` e o `.dmg` em `installer_output/`.
 
 ---
 
@@ -179,19 +159,19 @@ AUTOMATIZADO-RO/
 ├── main.py                 # Interface principal (PyQt5)
 ├── procurar_objeto.py      # Lógica de filtragem de objetos
 ├── procurar_distvel.py     # Lógica de organização dist/vel
-├── updater.py              # Auto-atualização cross-platform (GitHub)
+├── updater.py              # Auto-atualização via GitHub Releases
 ├── memorylab.ico           # Ícone do aplicativo
 │
-├── main.spec               # PyInstaller spec — Windows
-├── main_macos.spec         # PyInstaller spec — macOS
-├── installer.iss           # Script do instalador (Inno Setup, Windows)
+├── packaging/              # Scripts de build e empacotamento
+│   ├── main.spec           # PyInstaller spec — Windows
+│   ├── main_macos.spec     # PyInstaller spec — macOS
+│   ├── installer.iss       # Inno Setup — instalador Windows
+│   ├── build_exe.bat       # Build apenas .exe (Windows)
+│   ├── build_installer.bat # Build .exe + instalador (Windows)
+│   └── build_macos.sh      # Build .app + .dmg (macOS)
 │
-├── build_exe.bat           # Build apenas .exe (Windows)
-├── build_installer.bat     # Build .exe + instalador (Windows)
-├── build_macos.sh          # Build .app + .dmg (macOS)
-│
-├── dist/                   # Executáveis compilados
-└── installer_output/       # Instaladores gerados
+├── dist/                   # Executáveis compilados (gitignored)
+└── installer_output/       # Instaladores gerados (gitignored)
 ```
 
 ---
@@ -200,13 +180,13 @@ AUTOMATIZADO-RO/
 
 ### v2.0.0
 
+- 🔄 **Rebranding** do programa de AUTOMATIZADO para **NeuroTrace**
 - ✨ Interface completamente redesenhada com **PyQt5** (migração do tkinter)
 - 🎨 Design moderno com **tema escuro** e paleta laboratorial
 - 🔄 Sistema de **auto-atualização** via GitHub Releases
 - 📦 **Instalador Windows** com atalho na área de trabalho
 - 🍎 **Suporte a macOS** com `.app` bundle e `.dmg` installer
 - 🧹 Refatoração completa do código com boas práticas
-- 📊 Melhoria na organização e formatação das planilhas geradas
 
 ### v1.0.0
 

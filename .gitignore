@@ -22,7 +22,7 @@ dados_filtrados_obj.xlsx
 dados_filtrados_distvel.xlsx
 
 # Atualizações temporárias
-AUTOMATIZADO_update.exe
+NeuroTrace_update.exe
 _update.bat
 _update_mac.sh
 *.bak

@@ -351,11 +351,11 @@ class ConjuntoCard(QFrame):
 
 
 class MainWindow(QMainWindow):
-    """Janela principal do aplicativo AUTOMATIZADO."""
+    """Janela principal do aplicativo NeuroTrace."""
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("AUTOMATIZADO — Topscan Data Organizer")
+        self.setWindowTitle("NeuroTrace — Topscan Data Organizer")
         self.setMinimumSize(820, 780)
         self.resize(860, 800)
 
@@ -409,7 +409,7 @@ class MainWindow(QMainWindow):
         main_layout.setSpacing(16)
 
         # ─── Header ───
-        header = QLabel("AUTOMATIZADO")
+        header = QLabel("NeuroTrace")
         header.setAlignment(Qt.AlignCenter)
         header.setStyleSheet(f"""
             font-size: 26px;

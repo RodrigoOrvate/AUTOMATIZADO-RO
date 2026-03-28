@@ -1,7 +1,7 @@
 """
 updater.py — Módulo de Auto-Atualização via GitHub Releases
 
-Verifica se há uma versão mais recente do AUTOMATIZADO publicada
+Verifica se há uma versão mais recente do NeuroTrace publicada
 no GitHub Releases e, em caso positivo, baixa o novo instalador,
 substitui o atual e reinicia o programa.
 
@@ -88,7 +88,7 @@ class DownloadThread(QThread):
     def run(self):
         try:
             req = Request(self.download_url)
-            req.add_header("User-Agent", "AUTOMATIZADO-Updater")
+            req.add_header("User-Agent", "NeuroTrace-Updater")
 
             with urlopen(req, timeout=60) as response:
                 total_size = int(response.headers.get("Content-Length", 0))
@@ -122,7 +122,7 @@ class CheckUpdateThread(QThread):
     def run(self):
         try:
             req = Request(GITHUB_API_URL)
-            req.add_header("User-Agent", "AUTOMATIZADO-Updater")
+            req.add_header("User-Agent", "NeuroTrace-Updater")
             req.add_header("Accept", "application/vnd.github.v3+json")
 
             with urlopen(req, timeout=15) as response:
@@ -349,22 +349,22 @@ class UpdateDialog(QDialog):
         if self.asset_type == "win_installer":
             self.temp_path = os.path.join(
                 tempfile.gettempdir(),
-                f"AUTOMATIZADO_Setup_v{self.version}.exe"
+                f"NeuroTrace_Setup_v{self.version}.exe"
             )
         elif self.asset_type == "mac_dmg":
             self.temp_path = os.path.join(
                 tempfile.gettempdir(),
-                f"AUTOMATIZADO_macOS_v{self.version}.dmg"
+                f"NeuroTrace_macOS_v{self.version}.dmg"
             )
         elif self.asset_type == "mac_zip":
             self.temp_path = os.path.join(
                 tempfile.gettempdir(),
-                f"AUTOMATIZADO_macOS_v{self.version}.zip"
+                f"NeuroTrace_macOS_v{self.version}.zip"
             )
         else:
             # win_standalone fallback
             exe_dir = os.path.dirname(sys.executable) if is_frozen() else os.path.dirname(os.path.abspath(__file__))
-            self.temp_path = os.path.join(exe_dir, "AUTOMATIZADO_update.exe")
+            self.temp_path = os.path.join(exe_dir, "NeuroTrace_update.exe")
 
         self.download_thread = DownloadThread(self.download_url, self.temp_path)
         self.download_thread.progress.connect(self._on_progress)
@@ -435,12 +435,12 @@ class UpdateDialog(QDialog):
 
         bat_path = os.path.join(os.path.dirname(current_exe), "_update.bat")
         bat_content = f"""@echo off
-title Atualizando AUTOMATIZADO...
+title Atualizando NeuroTrace...
 echo Aguardando o programa fechar...
 timeout /t 2 /nobreak >nul
 
 :wait_loop
-tasklist /FI "PID eq %1" 2>nul | find /i "AUTOMATIZADO" >nul
+tasklist /FI "PID eq %1" 2>nul | find /i "NeuroTrace" >nul
 if not errorlevel 1 (
     timeout /t 1 /nobreak >nul
     goto wait_loop
@@ -477,7 +477,7 @@ del /f "%~f0"
         Monta o .dmg, copia o .app para /Applications
         e reinicia o programa.
         """
-        app_name = "AUTOMATIZADO.app"
+        app_name = "NeuroTrace.app"
         dest = f"/Applications/{app_name}"
 
         # Shell script que:
@@ -490,7 +490,7 @@ del /f "%~f0"
         script_content = f"""#!/bin/bash
 # Aguardar o app fechar
 sleep 2
-while pgrep -x "AUTOMATIZADO" > /dev/null 2>&1; do
+while pgrep -x "NeuroTrace" > /dev/null 2>&1; do
     sleep 1
 done
 
@@ -537,15 +537,15 @@ rm -f "$0"
         Extrai o .zip, copia o .app para /Applications
         e reinicia o programa.
         """
-        app_name = "AUTOMATIZADO.app"
+        app_name = "NeuroTrace.app"
         dest = f"/Applications/{app_name}"
-        extract_dir = os.path.join(tempfile.gettempdir(), "automatizado_update")
+        extract_dir = os.path.join(tempfile.gettempdir(), "neurotrace_update")
 
         script_path = os.path.join(tempfile.gettempdir(), "_update_mac.sh")
         script_content = f"""#!/bin/bash
 # Aguardar o app fechar
 sleep 2
-while pgrep -x "AUTOMATIZADO" > /dev/null 2>&1; do
+while pgrep -x "NeuroTrace" > /dev/null 2>&1; do
     sleep 1
 done
 
