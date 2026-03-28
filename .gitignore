@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+
+# PyInstaller
+build/
+dist/
+*.spec.bak
+
+# Inno Setup - Instalador compilado (Windows)
+# DMG - Instalador compilado (macOS)
+installer_output/
+
+# macOS build staging
+dmg_staging/
+
+# Dados gerados pelo programa
+dados_filtrados_obj.xlsx
+dados_filtrados_distvel.xlsx
+
+# Atualizações temporárias
+AUTOMATIZADO_update.exe
+_update.bat
+_update_mac.sh
+*.bak
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# macOS
+.DS_Store
+._*

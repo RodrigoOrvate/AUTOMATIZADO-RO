@@ -1,5 +1,6 @@
 import sys
 import os
+import platform
 import subprocess
 from functools import partial
 
@@ -794,7 +795,20 @@ class MainWindow(QMainWindow):
             arquivo = f_dv
 
         if arquivo:
-            os.startfile(arquivo)
+            self._open_file_crossplatform(arquivo)
+
+    @staticmethod
+    def _open_file_crossplatform(filepath: str):
+        """Abre arquivo com o programa padrão do sistema (cross-platform)."""
+        try:
+            if sys.platform == 'win32':
+                os.startfile(filepath)
+            elif sys.platform == 'darwin':
+                subprocess.Popen(['open', filepath])
+            else:
+                subprocess.Popen(['xdg-open', filepath])
+        except Exception:
+            pass
 
     def _reiniciar_programa(self):
         try:
