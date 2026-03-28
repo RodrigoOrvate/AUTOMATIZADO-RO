@@ -206,7 +206,7 @@ NeuroTrace/
 
 ## 📄 Licença
 
-Este projeto é de uso interno para fins acadêmicos e de pesquisa.
+Este projeto está licenciado sob a [Licença MIT](LICENSE) — veja o arquivo para detalhes.
 
 ---
 
