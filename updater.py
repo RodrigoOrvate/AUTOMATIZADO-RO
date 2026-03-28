@@ -31,7 +31,7 @@ GITHUB_OWNER = "RodrigoOrvate"
 GITHUB_REPO  = "NeuroTrace"
 GITHUB_API_URL  = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/releases/latest"
 GITHUB_REPO_URL = f"https://github.com/{GITHUB_OWNER}/{GITHUB_REPO}"
-CURRENT_VERSION = "2.0.0"
+CURRENT_VERSION = "2.0.1"
 
 IS_WINDOWS = sys.platform == "win32"
 IS_MACOS   = sys.platform == "darwin"
@@ -314,7 +314,9 @@ class WhatsNewDialog(QDialog):
             font-size: 13px; color: {COLORS['text']};
             line-height: 1.6;
         """)
-        notes_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        notes_label.setTextFormat(Qt.MarkdownText)
+        notes_label.setOpenExternalLinks(True)
+        notes_label.setTextInteractionFlags(Qt.TextBrowserInteraction)
         notes_layout.addWidget(notes_label)
         scroll.setWidget(notes_widget)
         layout.addWidget(scroll, stretch=1)
@@ -385,7 +387,7 @@ class UpdateDialog(QDialog):
 
     def _setup_ui(self, version: str, notes: str):
         self.setWindowTitle("Atualização Disponível")
-        self.setFixedSize(480, 320)
+        self.setFixedSize(480, 400)
         self.setStyleSheet(f"""
             QDialog {{ background-color: {COLORS['bg']}; }}
             QLabel  {{ color: {COLORS['text']}; background: transparent; }}
@@ -408,15 +410,40 @@ class UpdateDialog(QDialog):
         ver_label.setStyleSheet(f"font-size: 14px; color: {COLORS['text_muted']}; padding: 4px 0;")
         layout.addWidget(ver_label)
 
-        notes_label = QLabel(notes[:300] + ("..." if len(notes) > 300 else ""))
-        notes_label.setWordWrap(True)
-        notes_label.setStyleSheet(f"""
-            font-size: 12px; color: {COLORS['text_muted']};
-            background-color: {COLORS['card']};
-            border: 1px solid {COLORS['card_border']};
-            border-radius: 8px; padding: 12px;
+        # Notas com Scroll
+        from qt_compat import QScrollArea, QWidget as _QWidget
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet(f"""
+            QScrollArea {{
+                border: 1px solid {COLORS['card_border']};
+                border-radius: 8px; background: {COLORS['card']};
+            }}
+            QScrollBar:vertical {{
+                background: {COLORS['card']}; width: 8px; border-radius: 4px;
+            }}
+            QScrollBar::handle:vertical {{
+                background: {COLORS['card_border']}; min-height: 20px; border-radius: 4px;
+            }}
+            QScrollBar::handle:vertical:hover {{ background: {COLORS['accent']}; }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
         """)
-        layout.addWidget(notes_label)
+        
+        notes_widget = _QWidget()
+        notes_widget.setStyleSheet(f"background: transparent;")
+        notes_layout = QVBoxLayout(notes_widget)
+        notes_layout.setContentsMargins(12, 12, 12, 12)
+
+        notes_label = QLabel(notes)
+        notes_label.setWordWrap(True)
+        notes_label.setStyleSheet(f"font-size: 13px; color: {COLORS['text']}; line-height: 1.6;")
+        notes_label.setTextFormat(Qt.MarkdownText)
+        notes_label.setOpenExternalLinks(True)
+        notes_label.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        
+        notes_layout.addWidget(notes_label)
+        scroll.setWidget(notes_widget)
+        layout.addWidget(scroll, stretch=1)
 
         self.progress_bar = QProgressBar()
         self.progress_bar.setRange(0, 100)
