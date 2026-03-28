@@ -1,0 +1,102 @@
+# ============================================================
+#  NeuroTrace — Build macOS (.app + .dmg)
+#  Gera o instalador DMG automaticamente via GitHub Actions
+# ============================================================
+
+name: Build macOS DMG
+
+on:
+  # Disparar manualmente pelo GitHub (botão "Run workflow")
+  workflow_dispatch:
+
+  # Disparar automaticamente ao criar uma release
+  release:
+    types: [created]
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    
+    steps:
+      # ─── 1. Checkout do código ───
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      # ─── 2. Configurar Python ───
+      - name: Configurar Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      # ─── 3. Instalar dependências ───
+      - name: Instalar dependências Python
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller PyQt5 pandas openpyxl requests
+
+      # ─── 4. Gerar .app com PyInstaller ───
+      - name: Gerar .app bundle com PyInstaller
+        run: |
+          python -m PyInstaller packaging/main_macos.spec --clean --noconfirm
+
+      # ─── 5. Verificar se o .app foi criado ───
+      - name: Verificar .app bundle
+        run: |
+          if [ ! -d "dist/NeuroTrace.app" ]; then
+            echo "ERRO: Falha ao criar o .app bundle"
+            exit 1
+          fi
+          echo "✅ .app bundle criado com sucesso"
+          ls -la dist/
+
+      # ─── 6. Criar o .dmg ───
+      - name: Criar .dmg installer
+        run: |
+          APP_NAME="NeuroTrace"
+          VERSION="2.0.0"
+          DMG_NAME="${APP_NAME}_macOS_v${VERSION}"
+          DMG_DIR="dmg_staging"
+          DMG_OUTPUT="installer_output/${DMG_NAME}.dmg"
+
+          # Preparar staging
+          rm -rf "${DMG_DIR}"
+          mkdir -p "${DMG_DIR}"
+          mkdir -p "installer_output"
+
+          # Copiar .app para staging
+          cp -R "dist/${APP_NAME}.app" "${DMG_DIR}/"
+
+          # Criar symlink para /Applications
+          ln -s /Applications "${DMG_DIR}/Applications"
+
+          # Criar .dmg
+          hdiutil create \
+            -volname "${APP_NAME}" \
+            -srcfolder "${DMG_DIR}" \
+            -ov \
+            -format UDZO \
+            -imagekey zlib-level=9 \
+            "${DMG_OUTPUT}"
+
+          # Limpar staging
+          rm -rf "${DMG_DIR}"
+
+          echo ""
+          echo "✅ DMG criado: ${DMG_OUTPUT}"
+          ls -lh "${DMG_OUTPUT}"
+
+      # ─── 7. Upload do .dmg como artefato ───
+      - name: Upload DMG como artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: NeuroTrace_macOS_DMG
+          path: installer_output/*.dmg
+          retention-days: 90
+
+      # ─── 8. Anexar à Release (se disparado por release) ───
+      - name: Anexar DMG à Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: installer_output/*.dmg
