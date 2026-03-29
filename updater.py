@@ -658,31 +658,85 @@ class UpdateDialog(QDialog):
 
     # ─── Windows: Instalador Inno Setup ──────────────────────
     def _apply_win_installer(self, installer_path: str):
-        try:
-            subprocess.Popen(
-                [installer_path, "/SILENT", "/CLOSEAPPLICATIONS"],
-                creationflags=subprocess.CREATE_NO_WINDOW
-            )
-        except Exception:
-            subprocess.Popen([installer_path])
+        """
+        Usa .bat intermediário: espera o PID morrer, roda o Setup silencioso,
+        depois reabre o executável (no caminho original ou em Program Files).
+        Funciona independente do nome do exe antigo.
+        """
+        current_exe = sys.executable
+        install_dir = os.path.dirname(current_exe)
+        bat_path    = os.path.join(tempfile.gettempdir(), "_nt_setup_update.bat")
+        pid         = os.getpid()
+
+        bat_content = (
+            "@echo off\n"
+            "title Atualizando NeuroTrace...\n"
+            ":wait_pid\n"
+            f"tasklist /FI \"PID eq {pid}\" 2>nul | find /i \"{pid}\" >nul\n"
+            "if not errorlevel 1 (\n"
+            "    timeout /t 1 /nobreak >nul\n"
+            "    goto wait_pid\n"
+            ")\n"
+            f"\"{installer_path}\" /SILENT /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS\n"
+            f"del /f /q \"{installer_path}\"\n"
+            f"if exist \"{current_exe}\" (\n"
+            f"    start \"\" \"{current_exe}\"\n"
+            ") else (\n"
+            f"    for /r \"%ProgramFiles%\\NeuroTrace\" %%i in (*.exe) do (\n"
+            "        start \"\" \"%%i\"\n"
+            "        goto :eof\n"
+            "    )\n"
+            f"    for /r \"{install_dir}\" %%i in (NeuroTrace*.exe) do (\n"
+            "        start \"\" \"%%i\"\n"
+            "        goto :eof\n"
+            "    )\n"
+            ")\n"
+            "del /f \"%~f0\"\n"
+        )
+
+        with open(bat_path, "w", encoding="utf-8") as f:
+            f.write(bat_content)
+
+        subprocess.Popen(
+            ["cmd.exe", "/c", bat_path],
+            creationflags=subprocess.CREATE_NO_WINDOW
+        )
         QApplication.quit()
 
     # ─── Windows: Standalone .exe ────────────────────────────
     def _apply_win_standalone(self, new_exe_path: str):
+        """
+        Substitui o .exe atual pelo novo no mesmo caminho (sys.executable),
+        independente do nome do arquivo novo. Faz backup e reverte se falhar.
+        """
         current_exe = sys.executable
+        backup_exe  = current_exe + ".bak"
         bat_path    = os.path.join(tempfile.gettempdir(), "_nt_update.bat")
+        pid         = os.getpid()
 
-        bat_content = f"""@echo off
-title Atualizando NeuroTrace...
-:retry_move
-move /y "{new_exe_path}" "{current_exe}" >nul 2>&1
-if errorlevel 1 (
-    timeout /t 1 /nobreak >nul
-    goto retry_move
-)
-start "" "{current_exe}"
-del /f "%~f0"
-"""
+        bat_content = (
+            "@echo off\n"
+            "title Atualizando NeuroTrace...\n"
+            ":wait_pid\n"
+            f"tasklist /FI \"PID eq {pid}\" 2>nul | find /i \"{pid}\" >nul\n"
+            "if not errorlevel 1 (\n"
+            "    timeout /t 1 /nobreak >nul\n"
+            "    goto wait_pid\n"
+            ")\n"
+            f"if exist \"{backup_exe}\" del /f /q \"{backup_exe}\"\n"
+            f"move /y \"{current_exe}\" \"{backup_exe}\"\n"
+            f"move /y \"{new_exe_path}\" \"{current_exe}\"\n"
+            f"if exist \"{current_exe}\" (\n"
+            f"    start \"\" \"{current_exe}\"\n"
+            "    timeout /t 3 /nobreak >nul\n"
+            f"    if exist \"{backup_exe}\" del /f /q \"{backup_exe}\"\n"
+            ") else (\n"
+            "    echo Erro ao substituir. Revertendo...\n"
+            f"    move /y \"{backup_exe}\" \"{current_exe}\"\n"
+            ")\n"
+            "del /f \"%~f0\"\n"
+        )
+
         with open(bat_path, "w", encoding="utf-8") as f:
             f.write(bat_content)
 
