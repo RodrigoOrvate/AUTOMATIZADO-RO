@@ -68,6 +68,56 @@ def is_frozen() -> bool:
     return getattr(sys, 'frozen', False)
 
 
+def _get_update_dir() -> str:
+    """Pasta isolada para downloads de atualização no Windows.
+
+    Usa AppData\\Local\\Temp\\NeuroTraceUpdate — fora do OneDrive,
+    fora da raiz do Temp (evita falsos positivos de AV) e sem
+    caracteres acentuados no caminho (sem risco de corrupção no .bat).
+    """
+    local_appdata = os.environ.get("LOCALAPPDATA", tempfile.gettempdir())
+    path = os.path.join(local_appdata, "Temp", "NeuroTraceUpdate")
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+def _get_win_desktop() -> str:
+    """Retorna o caminho real da Área de Trabalho, respeitando redirecionamento OneDrive.
+
+    No Windows com OneDrive ativo o Desktop pode estar em
+    C:\\Users\\user\\OneDrive\\Área de Trabalho em vez de C:\\Users\\user\\Desktop.
+    A chave de registro User Shell Folders reflete o caminho real.
+    """
+    try:
+        import winreg
+        key = winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER,
+            r"Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders",
+        )
+        desktop, _ = winreg.QueryValueEx(key, "Desktop")
+        return os.path.expandvars(desktop)
+    except Exception:
+        return os.path.join(os.path.expanduser("~"), "Desktop")
+
+
+def _diag_log(msg: str):
+    """Grava mensagem de diagnóstico em arquivo — útil porque console=False.
+
+    Arquivo: %LOCALAPPDATA%\\Temp\\NeuroTraceUpdate\\_nt_update.log
+    Criado automaticamente; pode ser apagado a qualquer momento.
+    """
+    if not IS_WINDOWS:
+        return
+    try:
+        import datetime
+        log_path = os.path.join(_get_update_dir(), "_nt_update.log")
+        ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(f"[{ts}] {msg}\n")
+    except Exception:
+        pass
+
+
 def _get_version_file_path() -> str:
     """Retorna o caminho do arquivo que guarda a última versão vista.
     Usa o diretório de dados do usuário para garantir permissão de escrita."""
@@ -162,6 +212,12 @@ class CheckUpdateThread(QThread):
     error            = pyqtSignal(str)
 
     def run(self):
+        # Log gravado ANTES da chamada de rede — confirma que a thread iniciou
+        # e cria a pasta NeuroTraceUpdate mesmo que a API falhe depois.
+        _diag_log(
+            f"[thread] iniciando verificacao | exe={sys.executable} | "
+            f"local={CURRENT_VERSION} | api={GITHUB_API_URL}"
+        )
         try:
             req = Request(GITHUB_API_URL)
             req.add_header("User-Agent",  "NeuroTrace-Updater")
@@ -171,22 +227,26 @@ class CheckUpdateThread(QThread):
 
             remote_version = data.get("tag_name", "")
             release_notes  = data.get("body_html", "Sem notas de atualização.")
-            download_url, asset_type = self._find_asset(data.get("assets", []))
 
-            if not download_url and asset_type != "win_choice":
+            # _find_asset chamada uma única vez; resultado reutilizado abaixo.
+            asset_url, asset_type = self._find_asset(data.get("assets", []))
+
+            _diag_log(
+                f"[api] tag={remote_version} asset_type={asset_type} "
+                f"assets={[a['name'] for a in data.get('assets', [])]}"
+            )
+
+            if not asset_url and asset_type != "win_choice":
                 plat = "macOS" if IS_MACOS else "Windows"
+                _diag_log(f"[api] nenhum asset para {plat} — abortando")
                 self.error.emit(f"Nenhum arquivo para {plat} encontrado no release.")
                 return
 
             local  = _parse_version(CURRENT_VERSION)
             remote = _parse_version(remote_version)
+            _diag_log(f"[versao] local={local} remote={remote} update={'sim' if remote > local else 'nao'}")
 
             if remote > local:
-                asset_url, asset_type = self._find_asset(data.get("assets", []))
-                if not asset_url:
-                    plat = "macOS" if IS_MACOS else "Windows"
-                    self.error.emit(f"Nenhum arquivo para {plat} encontrado no release.")
-                    return
                 self.update_available.emit(
                     remote_version, release_notes,
                     f"{asset_url}||{asset_type}"
@@ -194,9 +254,11 @@ class CheckUpdateThread(QThread):
             else:
                 self.no_update.emit()
 
-        except URLError:
+        except URLError as e:
+            _diag_log(f"[erro] URLError: {e}")
             self.error.emit("Sem conexão com a internet.")
         except Exception as e:
+            _diag_log(f"[erro] Exception: {e}")
             self.error.emit(str(e))
 
     def _find_asset(self, assets: list) -> tuple:
@@ -592,28 +654,30 @@ class UpdateDialog(QDialog):
         self.progress_bar.setVisible(True)
         self.status_label.setText("Baixando atualização...")
 
+        # strip "v" prefix para evitar nome duplo "vv2.0.1" (tag do GitHub já inclui "v")
+        ver = self.version.lstrip("vV")
+        _diag_log(
+            f"[download] asset_type={self.asset_type} ver={ver} "
+            f"url={self.download_url[:60]}... exe={sys.executable}"
+        )
+
         if self.asset_type == "win_installer":
-            self.temp_path = os.path.join(
-                tempfile.gettempdir(),
-                f"NeuroTrace_Setup_v{self.version}.exe"
-            )
+            # Setup vai direto para %TEMP% — é um instalador legítimo, sem risco de falso positivo.
+            # Não usa _get_update_dir() para não criar pasta _update nem misturar com o fluxo standalone.
+            self.temp_path = os.path.join(tempfile.gettempdir(), f"NeuroTrace_Setup_v{ver}.exe")
         elif self.asset_type == "mac_dmg":
             self.temp_path = os.path.join(
                 tempfile.gettempdir(),
-                f"NeuroTrace_macOS_v{self.version}.dmg"
+                f"NeuroTrace_macOS_v{ver}.dmg"
             )
         elif self.asset_type == "mac_zip":
             self.temp_path = os.path.join(
                 tempfile.gettempdir(),
-                f"NeuroTrace_macOS_v{self.version}.zip"
+                f"NeuroTrace_macOS_v{ver}.zip"
             )
         else:
-            # Pasta local junto ao executável — evita falsos positivos de Trojan
-            # que ocorrem quando o download vai direto para AppData/Local/Temp.
-            base = os.path.dirname(sys.executable) if is_frozen() else os.path.dirname(os.path.abspath(__file__))
-            update_dir = os.path.join(base, "_update")
-            os.makedirs(update_dir, exist_ok=True)
-            self.temp_path = os.path.join(update_dir, f"NeuroTrace_v{self.version}.exe")
+            # Portátil standalone: pasta isolada fora do OneDrive
+            self.temp_path = os.path.join(_get_update_dir(), f"NeuroTrace_v{ver}.exe")
 
         self.download_thread = DownloadThread(self.download_url, self.temp_path)
         self.download_thread.progress.connect(self._on_progress)
@@ -660,94 +724,144 @@ class UpdateDialog(QDialog):
 
     # ─── Windows: Instalador Inno Setup ──────────────────────
     def _apply_win_installer(self, installer_path: str):
-        from sys import executable
-        is_installed = "program files" in executable.lower() or "appdata" in executable.lower()
-        # Codifica o Refresh do Windows em base64 para injetar de forma segura no VBS (Ignora escapes de aspas duplas de C#)
-        ps_script = 'Add-Type -TypeDefinition \'using System; using System.Runtime.InteropServices; public class Shell { [DllImport("shell32.dll")] public static extern void SHChangeNotify(uint wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2); }\'; [Shell]::SHChangeNotify(0x08000000, 0, [IntPtr]::Zero, [IntPtr]::Zero)'
-        import base64
-        encoded_ps = base64.b64encode(ps_script.encode("utf-16le")).decode("ascii")
+        # Dispara o instalador e encerra imediatamente.
+        # O Inno Setup gerencia permissões, UAC e instalação em Program Files —
+        # o Python não escreve nada em pastas do sistema nem gera arquivos .bat.
 
-        if getattr(sys, "frozen", False) and not is_installed:
-            vbs_path = os.path.join(tempfile.gettempdir(), "_nt_install.vbs")
-            vbs_content = f"""
-Set fso = CreateObject("Scripting.FileSystemObject")
-Set shell = CreateObject("WScript.Shell")
-On Error Resume Next
-' Roda o instalador parado aguardando o fim da instalação
-shell.Run Chr(34) & "{installer_path}" & Chr(34) & " /SP- /SILENT /CLOSEAPPLICATIONS", 1, True
-
-' Fica em loop caçando e deletando o EXE portátil antigo que iniciou esse update
-Do While fso.FileExists("{executable}")
-    fso.DeleteFile "{executable}", True
-    If Err.Number = 0 Or Not fso.FileExists("{executable}") Then Exit Do
-    Err.Clear
-    WScript.Sleep 1000
-Loop
-' Força a renovação visual do Desktop (Remove fantasmas) via PowerShell SHChangeNotify escondido
-psRefresh = "powershell.exe -WindowStyle Hidden -EncodedCommand {encoded_ps}"
-shell.Run psRefresh, 0, True
-
-fso.DeleteFile WScript.ScriptFullName, True
-"""
-            with open(vbs_path, "w", encoding="utf-16") as f:
-                f.write(vbs_content)
-                
-            # Limpa qualquer variável de ambiente injetada pelo PyInstaller (_MEIPASS2, _PYI_...)
-            env_clear = os.environ.copy()
-            for k in list(env_clear.keys()):
-                if "MEI" in k or "PYI" in k:
-                    env_clear.pop(k, None)
-
-            # Invoca o VBScript imune a quebras de string do Windows
-            subprocess.Popen(
-                ["wscript.exe", "//B", "//Nologo", vbs_path],
-                creationflags=subprocess.CREATE_NO_WINDOW,
-                env=env_clear
+        # Cenário: portátil atualizando via Setup.
+        # O exe standalone ficaria órfão após a instalação — um .bat de limpeza o remove.
+        # Só faz isso quando NÃO está em Program Files; se já for instalado (Setup→Setup),
+        # sys.executable aponta para o exe do Program Files e não deve ser deletado.
+        prog_files_chk     = os.environ.get("PROGRAMFILES",       r"C:\Program Files")
+        prog_files_x86_chk = os.environ.get("PROGRAMFILES(X86)", r"C:\Program Files (x86)")
+        is_portable_context = not (
+            sys.executable.lower().startswith(prog_files_chk.lower()) or
+            sys.executable.lower().startswith(prog_files_x86_chk.lower())
+        )
+        if is_frozen() and is_portable_context:
+            bat_path = os.path.join(_get_update_dir(), "_nt_cleanup.bat")
+            bat_content = (
+                "@echo off\n"
+                "timeout /t 3 /nobreak >nul\n"
+                'del /f /q "%NT_PORTABLE_EXE%"\n'
+                'del "%~f0"\n'
             )
-            os._exit(0)
-        else:
-            try:
-                subprocess.Popen(
-                    [installer_path, "/SILENT", "/CLOSEAPPLICATIONS"],
-                    creationflags=subprocess.CREATE_NO_WINDOW
-                )
-            except Exception:
-                subprocess.Popen([installer_path])
-            os._exit(0)
+            with open(bat_path, "w", encoding="ascii") as f:
+                f.write(bat_content)
+
+            env_run = {k: v for k, v in os.environ.items() if "MEI" not in k and "PYI" not in k}
+            env_run["NT_PORTABLE_EXE"] = sys.executable
+
+            subprocess.Popen(
+                ["cmd.exe", "/C", bat_path],
+                creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NO_WINDOW,
+                env=env_run,
+            )
+
+        try:
+            subprocess.Popen(
+                [installer_path, "/SILENT", "/CLOSEAPPLICATIONS"],
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
+        except Exception:
+            subprocess.Popen([installer_path])
+        os._exit(0)
 
     def _apply_win_standalone(self, new_exe_path: str):
         current_exe = sys.executable
-        bat_path = os.path.join(os.path.dirname(new_exe_path), "_nt_update.bat")
 
-        # Helper script .bat conforme diretrizes do projeto:
-        #   1. timeout /t 2  — aguarda o processo principal liberar o lock do .exe
-        #   2. move /y       — substitui o executável antigo pelo novo (operação atômica)
-        #   3. start ""      — reinicia a nova versão automaticamente
-        #   4. del "%~f0"    — auto-deleta o script após a conclusão
-        #
-        # ATENÇÃO: cmd.exe pode corromper caminhos com acentos (ex: "Área") em
-        # sistemas com CodePage OEM diferente de 65001. Se o .exe estiver em um
-        # caminho acentuado, use o fluxo win_installer (Setup) como alternativa.
+        # Detecta se está rodando a partir de uma instalação Setup (Program Files).
+        prog_files     = os.environ.get("PROGRAMFILES",       r"C:\Program Files")
+        prog_files_x86 = os.environ.get("PROGRAMFILES(X86)", r"C:\Program Files (x86)")
+        running_from_setup = (
+            current_exe.lower().startswith(prog_files.lower()) or
+            current_exe.lower().startswith(prog_files_x86.lower())
+        )
+
+        if running_from_setup:
+            # ── Cenário: Setup → Portátil ──────────────────────────────────────
+            # Move o novo exe para a Área de Trabalho do usuário com nome fixo.
+            # Atalho: com PrivilegesRequired=admin, o Inno Setup cria o atalho em
+            # {commondesktop} = C:\Users\Public\Desktop, NÃO no desktop do usuário.
+            # O bat tenta ambos os locais; falhas são suprimidas com >nul 2>&1.
+            user_desktop   = _get_win_desktop()
+            public_desktop = os.path.join(
+                os.environ.get("PUBLIC", r"C:\Users\Public"), "Desktop"
+            )
+            dest_exe = os.path.join(user_desktop, "NeuroTrace.exe")
+
+            # Log de diagnóstico em arquivo — útil porque console=False
+            log_path = os.path.join(_get_update_dir(), "_nt_update.log")
+
+            bat_path = os.path.join(_get_update_dir(), "_nt_to_portable.bat")
+            bat_content = (
+                "@echo off\n"
+                "timeout /t 2 /nobreak >nul\n"
+                # Log de diagnóstico: confirma que o bat foi executado
+                'echo [bat] iniciando transicao Setup-to-Portable >> "%NT_LOG%"\n'
+                'echo [bat] NT_NEW_EXE=%NT_NEW_EXE% >> "%NT_LOG%"\n'
+                'echo [bat] NT_DEST_EXE=%NT_DEST_EXE% >> "%NT_LOG%"\n'
+                'echo [bat] antes do unblock+copy >> "%NT_LOG%"\n'
+                'powershell -NoProfile -Command "Unblock-File -LiteralPath $env:NT_NEW_EXE; Copy-Item -LiteralPath $env:NT_NEW_EXE -Destination $env:NT_DEST_EXE -Force; Unblock-File -LiteralPath $env:NT_DEST_EXE" 2>>"%NT_LOG%"\n'
+                'set COPY_ERR=%errorlevel%\n'
+                'echo [bat] copy errorlevel=%COPY_ERR% >> "%NT_LOG%"\n'
+                # Só prossegue se a cópia foi bem-sucedida
+                'if %COPY_ERR% equ 0 (\n'
+                '  del /f /q "%NT_NEW_EXE%"\n'
+                # Remove atalho do Desktop público (instalação admin) e do Desktop do usuário
+                '  del /f /q "%NT_SHORTCUT_PUB%" >nul 2>&1\n'
+                '  del /f /q "%NT_SHORTCUT_USR%" >nul 2>&1\n'
+                # Tenta remover pasta inteira do Program Files (pode falhar sem admin — tolerado)
+                '  rmdir /s /q "%NT_OLD_DIR%" >nul 2>&1\n'
+                '  start "" "%NT_DEST_EXE%"\n'
+                # Notifica o shell para atualizar ícones da Área de Trabalho
+                '  ie4uinit.exe -show\n'
+                ') else (\n'
+                '  echo [bat] ERRO copy falhou - exe mantido em Temp >> "%NT_LOG%"\n'
+                ')\n'
+                'del "%~f0"\n'
+            )
+            with open(bat_path, "w", encoding="ascii") as f:
+                f.write(bat_content)
+
+            env_run = {k: v for k, v in os.environ.items() if "MEI" not in k and "PYI" not in k}
+            env_run["NT_NEW_EXE"]       = new_exe_path
+            env_run["NT_DEST_EXE"]      = dest_exe
+            env_run["NT_SHORTCUT_PUB"]  = os.path.join(public_desktop, "NeuroTrace.lnk")
+            env_run["NT_SHORTCUT_USR"]  = os.path.join(user_desktop,   "NeuroTrace.lnk")
+            env_run["NT_OLD_DIR"]       = os.path.dirname(current_exe)
+            env_run["NT_LOG"]           = log_path
+
+            subprocess.Popen(
+                ["cmd.exe", "/C", bat_path],
+                creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NO_WINDOW,
+                env=env_run,
+            )
+            os._exit(0)
+
+        # ── Cenário normal: Portátil → Portátil ────────────────────────────────
+        # .bat salvo em NeuroTraceUpdate (sem acentos) — conteúdo puro ASCII.
+        # Caminhos com acentos/espaços chegam ao cmd.exe via variáveis de ambiente;
+        # a expansão %VAR% usa a API Unicode do Win32 internamente.
+        bat_path = os.path.join(_get_update_dir(), "_nt_update.bat")
         bat_content = (
             "@echo off\n"
-            "chcp 65001 >nul\n"
-            f'timeout /t 2 /nobreak >nul\n'
-            f'move /y "{new_exe_path}" "{current_exe}"\n'
-            f'start "" "{current_exe}"\n'
+            "timeout /t 2 /nobreak >nul\n"
+            'move /y "%NT_NEW_EXE%" "%NT_CUR_EXE%"\n'
+            'start "" "%NT_CUR_EXE%"\n'
             'del "%~f0"\n'
         )
-        with open(bat_path, "w", encoding="utf-8") as f:
+        with open(bat_path, "w", encoding="ascii") as f:
             f.write(bat_content)
 
-        env_clear = os.environ.copy()
-        for k in list(env_clear.keys()):
-            if "MEI" in k or "PYI" in k:
-                env_clear.pop(k, None)
+        env_run = {k: v for k, v in os.environ.items() if "MEI" not in k and "PYI" not in k}
+        env_run["NT_NEW_EXE"] = new_exe_path
+        env_run["NT_CUR_EXE"] = current_exe
 
         subprocess.Popen(
             ["cmd.exe", "/C", bat_path],
             creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NO_WINDOW,
-            env=env_clear
+            env=env_run
         )
         os._exit(0)
 
@@ -878,6 +992,9 @@ def check_for_updates(parent=None, silent: bool = True):
     if parent:
         parent._update_checker = checker
 
+    # Log gravado no main thread ANTES de iniciar a thread — se este aparecer
+    # no log mas [thread] não aparecer, a QThread falhou ao iniciar.
+    _diag_log(f"[check_for_updates] silent={silent} | checker.start() chamado")
     checker.start()
 
 
