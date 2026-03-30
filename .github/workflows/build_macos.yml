@@ -79,7 +79,10 @@ jobs:
           python -m PyInstaller packaging/main_macos.spec --clean --noconfirm
           echo "✅ PyInstaller concluído"
 
-      # ─── 7. Verificar se o .app foi criado ───
+          # Aguarda o SO liberar file locks da pasta dist/ antes do hdiutil
+          sleep 5
+
+      # ─── 7. Verificar estrutura do .app (debug) ───
       - name: Verificar .app bundle
         run: |
           if [ ! -d "dist/NeuroTrace.app" ]; then
@@ -89,6 +92,8 @@ jobs:
           fi
           echo "✅ .app bundle criado"
           du -sh dist/NeuroTrace.app
+          echo "── Estrutura de dist/ ──"
+          ls -R dist/
 
       # ─── 8. Criar o .dmg ───
       - name: Criar .dmg installer
@@ -100,12 +105,23 @@ jobs:
           DMG_DIR="dmg_staging"
           DMG_OUTPUT="installer_output/${DMG_NAME}.dmg"
 
+          # Desmontar qualquer volume "NeuroTrace" que possa estar preso de runs anteriores
+          hdiutil detach "/Volumes/${APP_NAME}" -force 2>/dev/null || true
+
+          # Remover .dmg residual de cache anterior
+          rm -f installer_output/*.dmg 2>/dev/null || true
+
           rm -rf "${DMG_DIR}"
           mkdir -p "${DMG_DIR}"
           mkdir -p "installer_output"
 
+          # Copiar .app para diretório de staging (nome diferente do DMG final)
           cp -R "dist/${APP_NAME}.app" "${DMG_DIR}/"
           ln -s /Applications "${DMG_DIR}/Applications"
+
+          echo "▶ Criando DMG: ${DMG_OUTPUT}"
+          echo "── Conteúdo do staging ──"
+          ls -la "${DMG_DIR}/"
 
           hdiutil create \
             -volname "${APP_NAME}" \
