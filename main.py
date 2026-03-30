@@ -402,8 +402,16 @@ class MainWindow(QMainWindow):
         self.caminho_arquivo2 = ""
         self.conjuntos_cards  = []
         self.global_workbook  = openpyxl.Workbook()
-        self.global_excel_filename_obj    = "dados_filtrados_obj.xlsx"
-        self.global_excel_filename_distvel = "dados_filtrados_distvel.xlsx"
+        _out_dir = os.path.join(os.path.expanduser("~"), "Documents", "NeuroTrace")
+        _primeira_vez = not os.path.exists(_out_dir)
+        os.makedirs(_out_dir, exist_ok=True)
+        self.global_excel_filename_obj    = os.path.join(_out_dir, "dados_filtrados_obj.xlsx")
+        self.global_excel_filename_distvel = os.path.join(_out_dir, "dados_filtrados_distvel.xlsx")
+        if _primeira_vez:
+            QMessageBox.information(
+                self, "Pasta de saída criada",
+                f"Os arquivos gerados pelo NeuroTrace serão salvos em:\n\n{_out_dir}"
+            )
         self.colunas_desejadas = [
             'DAY', 'ANIMAL', 'OBJECTS', 'Total Bouts',
             'Total Duration(Second)', 'Latency(Second)',
