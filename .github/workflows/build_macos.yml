@@ -119,6 +119,9 @@ jobs:
           cp -R "dist/${APP_NAME}.app" "${DMG_DIR}/"
           ln -s /Applications "${DMG_DIR}/Applications"
 
+          # Aguarda Spotlight e outros processos liberarem handles nos arquivos de staging
+          sleep 10
+
           echo "▶ Criando DMG: ${DMG_OUTPUT}"
           echo "── Conteúdo do staging ──"
           ls -la "${DMG_DIR}/"
@@ -128,7 +131,8 @@ jobs:
             -srcfolder "${DMG_DIR}" \
             -ov \
             -format UDZO \
-            -imagekey zlib-level=9 \
+            -layout SPUD \
+            -fs HFS+ \
             "${DMG_OUTPUT}"
 
           rm -rf "${DMG_DIR}"
